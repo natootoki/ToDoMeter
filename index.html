@@ -1,0 +1,321 @@
+<div id="export">
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>ToDoMeter</title>
+
+        <style>
+            body {
+                background-color: #888888;
+                margin: 32px;
+            }
+
+            .rectangle {
+                height: 30px;
+                border: 1px solid black;
+                margin-top: 10px;
+                position: relative;
+                background-color: #444444;
+            }
+
+            .custom-label {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: left;
+                font-weight: bold;
+                white-space: nowrap;
+                color: white;
+            }
+
+            .line {
+                position: absolute;
+                background-color: white;
+                width: 1px;
+                color: white;
+                font-family: "Arial, sans-serif";
+            }
+        </style>
+
+    </head>
+    <body>
+        <p style="color: white;">
+            フォントサイズ:
+            <input type="number" id="fontSizeInput" value="16">
+            <button onclick="changeFontSize()">適用</button>
+        </p>
+        <textarea id="timestamps" rows="10" style="width: 80%;"></textarea>
+        <br>
+        <button onclick="addTimestamp()">ラップ</button>
+        <button onclick="drawRectangles()">描画</button>
+        <input type="text" id="fileName" placeholder="fileName">
+        <button id="export" onclick="exportFile()">エクスポート</button>
+        <hr id="horizon">
+        <div id="rectangleContainer" style="position: relative; padding-top: 64px;"></div>
+
+        <script>
+            var test_value = new Date(0);
+
+            var pixel_per_minute = 2;
+
+            var time_min = 0;
+            var time_max = 0;
+
+            var minute_control = 0;
+
+            var bodyStyles = window.getComputedStyle(document.body);
+            var bodyMargin = parseInt(bodyStyles.margin, 10);
+
+            function changeFontSize() {
+                var fontSizeInput = document.getElementById("fontSizeInput");
+                var textarea = document.getElementById("timestamps");
+
+                var fontSize = fontSizeInput.value + "px";
+                textarea.style.fontSize = fontSize;
+            }
+
+            function exportFile() {
+                var timestamps = document.getElementById("timestamps").value;
+                var filenameInput = document.getElementById("fileName");
+                var filename = filenameInput.value + ".txt";
+
+                var element = document.createElement("a");
+                element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(timestamps));
+                element.setAttribute("download", filename);
+
+                element.style.display = "none";
+                document.body.appendChild(element);
+
+                element.click();
+
+                document.body.removeChild(element);
+            }
+
+            function addTimestamp() {
+                var now = new Date();
+                var timestamps = document.getElementById("timestamps");
+                var startPos = timestamps.selectionStart;
+                var endPos = timestamps.selectionEnd;
+
+                var currentValue = timestamps.value;
+                var addValue = now.toLocaleString();
+                var newValue = currentValue.slice(0, startPos) + addValue + currentValue.slice(endPos);
+
+                var scrollTop = timestamps.scrollTop;
+                var scrollLeft = timestamps.scrollLeft;
+
+                timestamps.value = newValue;
+                timestamps.focus();
+                timestamps.setSelectionRange(startPos + addValue.length, startPos + addValue.length);
+
+                timestamps.scrollTop = scrollTop;
+                timestamps.scrollLeft = scrollLeft;
+            }
+
+            function findMaxValueBelow(list, number) {
+                let max = null;
+                for (let i = 0; i < list.length; i++){
+                    if(list[i] < number && (max === null || list[i] > max)) {
+                        max = list[i];
+                    }
+                }
+                return max;
+            }
+
+            function findMinValueAbove(list, number) {
+                let min = null;
+                for (let i = 0; i < list.length; i++){
+                    if(list[i] > number && (min === null || list[i] < min)) {
+                        min = list[i];
+                    }
+                }
+                return min;
+            }
+
+            function findMinDateTime(list) {
+                var minDateTime = null;
+
+                for (var i = 0; i < list.length; i++) {
+                    var dateTime = new Date(list[i]);
+                    if (dateTime instanceof Date && !isNaN(dateTime)) {
+                        if (minDateTime === null || dateTime < minDateTime) {
+                            minDateTime = dateTime;
+                        }
+                    }
+                }
+
+                return minDateTime;
+            }
+
+            function findMaxDateTime(list) {
+                var maxDateTime = null;
+
+                for (var i = 0; i < list.length; i++) {
+                    var dateTime = new Date(list[i]);
+                    if (dateTime instanceof Date && !isNaN(dateTime)) {
+                        if (maxDateTime === null || dateTime > maxDateTime) {
+                            maxDateTime = dateTime;
+                        }
+                    }
+                }
+
+                return maxDateTime;
+            }
+
+            function drawLines() {
+                var element = document.getElementById("horizon");
+                var rect = element.getBoundingClientRect();
+                var x = rect.left;
+                var y = rect.top;
+
+                var rectangleContainer = document.getElementById("rectangleContainer");
+                var rectangleContainer_height = rectangleContainer.offsetHeight;
+
+                var horizon = document.getElementById("horizon");
+                var marginTop = parseInt(getComputedStyle(horizon).marginTop, 10);
+                var marginBottom = parseInt(getComputedStyle(horizon).marginBottom, 10);
+
+                var lineElements = document.getElementsByClassName("line");
+
+                while (lineElements.length > 0) {
+                    lineElements[0].remove();
+                }
+
+                var inner_index = 0;
+                while(true){
+                    var divElement = document.createElement("pre");
+
+                    divElement.classList.add("line");
+
+                    var tm = new Date(time_min);
+                    var tM = new Date(time_max);
+                    var index_time = new Date(time_min);
+                    index_time.setHours(tm.getHours() + inner_index);
+                    index_time.setMinutes(0);
+                    index_time.setSeconds(0);
+
+                    divElement.style.left = pixel_per_minute*(60*inner_index) + "px";
+
+                    divElement.style.top = 0 + "px";
+                    divElement.style.height = rectangleContainer_height + 2*marginBottom + "px";
+
+                    divElement.textContent = index_time.getFullYear() + "/" + (index_time.getMonth()+1) + "/" + index_time.getDate() + "\n" + index_time.getHours() + "時";
+
+                    rectangleContainer.appendChild(divElement);
+
+                    if(index_time>tM){
+                        break;
+                    }
+
+                    inner_index++;
+                }
+            }
+
+            function isDateTimeFormat(value) {
+                var pattern = /^\d{4}\/\d{1,2}\/\d{1,2} \d{1,2}:\d{2}:\d{2}$/;
+
+                return pattern.test(value);
+            }
+
+            function drawRectangles() {
+                var tasks = [];
+                var times = [];
+                var tasks_index = [];
+                var times_index = [];
+                var tasks_and_times = [];
+
+                var timestamps = document.getElementById("timestamps").value;
+                var lines = timestamps.split("\n");
+                var rectangles = [];
+
+                var inCustom = false;
+                var customLine = '';
+
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+
+                    if (line.startsWith('##')) {
+                        tasks.push(line.slice(2).trim());
+                        tasks_index.push(tasks_and_times.length);
+                        tasks_and_times.push(line.slice(2).trim());
+                        continue;
+                    }
+
+                    if (isDateTimeFormat(line)) {
+                        var timestamp = new Date(line);
+                        if (isNaN(timestamp)) {
+                            continue;
+                        }
+
+                        times.push(timestamp);
+                        times_index.push(tasks_and_times.length);
+                        tasks_and_times.push(timestamp);
+                    }
+                }
+
+                for (var i = 0; i < tasks_index.length; i++) {
+                    rectangles.push({
+                        startTimestamp: tasks_and_times[findMaxValueBelow(times_index, tasks_index[i])],
+                        endTimestamp: tasks_and_times[findMinValueAbove(times_index, tasks_index[i])],
+                        startX: 0,
+                        width: 0,
+                        customLine: tasks_and_times[tasks_index[i]]
+                    });
+                }
+
+                time_min = findMinDateTime(times);
+                time_max = findMaxDateTime(times);
+                minute_control = findMinDateTime(times);
+                if (minute_control !== null) {
+                    minute_control.setMinutes(0);
+                    minute_control.setSeconds(0);
+                }
+
+                for (var i = 0; i < rectangles.length; i++) {
+                    if (isNaN(rectangles[i].startTimestamp) || isNaN(rectangles[i].endTimestamp)) {
+                        rectangles[i].startTimestamp = time_max;
+                        rectangles[i].endTimestamp = time_max;
+                    }
+                    rectangles[i].startX = (Math.min(rectangles[i].startTimestamp, rectangles[i].endTimestamp) - minute_control) / (1000 * 60);
+                    var width = Math.abs(rectangles[i].endTimestamp - rectangles[i].startTimestamp) / (1000 * 60);
+                    console.log(rectangles[i].startTimestamp);
+                    console.log(rectangles[i].endTimestamp);
+                    rectangles[i].width = width;
+                }
+
+                var rectangleContainer = document.getElementById("rectangleContainer");
+                rectangleContainer.innerHTML = "";
+
+                rectangles.forEach(function(rectangle) {
+                    var rect = document.createElement("div");
+                    rect.className = "rectangle";
+                    rect.style.width = rectangle.width * pixel_per_minute + "px";
+                    rect.style.marginLeft = rectangle.startX * pixel_per_minute + "px";
+
+                    if (rectangle.customLine !== '') {
+                        var customLabel = document.createElement("div");
+                        customLabel.className = "custom-label";
+                        customLabel.textContent = rectangle.customLine;
+                        if (rectangle.startTimestamp < time_max || rectangle.endTimestamp < time_max) {
+                            customLabel.textContent += "：" + rectangle.width.toFixed(0) + "分";
+                        }
+                        rect.appendChild(customLabel);
+                    }
+                    rectangleContainer.appendChild(rect);
+                });
+                if (times.length > 0) {
+                    drawLines();
+                }
+            }
+
+            window.onbeforeunload = function() {
+                return "本当に閉じますか？";
+            };
+        </script>
+    </body>
+</html>
+</div>
